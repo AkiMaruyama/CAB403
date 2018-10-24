@@ -8,41 +8,50 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <signal.h>
-#include "../common/map.h"
-#include "../common/list.h"
-#include "../common/common.h"
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include "../common/map.h"
+#include "../common/list.h"
+#include "../common/common.h"
 
+/*
+ * IMPORTANT VARIABLES AFTER STEP 2
+ * DON'T DELETE
+ */
 Map accounts;
-List words;
-
 Map scores;
-
 List currentSessions;
 List gameSessions;
 
+uint16_t serverPort;
+int sockfd, new_fd;
+volatile int highestSession = 0;
 
-// Mutexes are different on macOS for some reason
 #ifdef __APPLE__
+/* the pthread mutex initializer for APPLE products  */
 pthread_mutex_t request_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
 pthread_mutex_t scores_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER;
 #else
+/* the pthread mutex initializer for NON_APPLE products */
 pthread_mutex_t request_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 pthread_mutex_t scores_mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 #endif
 
 pthread_cond_t got_request = PTHREAD_COND_INITIALIZER;
+
 int num_requests = 0;
 struct request * requests = NULL;
 struct request * last_request = NULL;
 
+/*
+ * this function add requests to memory
+ */
 void add_request(int socket_id, pthread_mutex_t * p_mutex, pthread_cond_t * p_cond_var) {
     struct request * newRequest = (struct request *) malloc(sizeof(struct request));
     if (!newRequest) {
-        error("Out of memory");
+        error("MEMORY IS OUT!");
         return;
     }
     newRequest->socket_id = socket_id;
@@ -50,7 +59,6 @@ void add_request(int socket_id, pthread_mutex_t * p_mutex, pthread_cond_t * p_co
 
     pthread_mutex_lock(p_mutex);
 
-    // Add the new request to the list
     if (num_requests == 0) {
         requests = newRequest;
         last_request = newRequest;
@@ -65,6 +73,9 @@ void add_request(int socket_id, pthread_mutex_t * p_mutex, pthread_cond_t * p_co
     pthread_cond_signal(p_cond_var);
 }
 
+/*
+ * this structure controls the numbers of requests
+ */
 struct request * get_request(pthread_mutex_t * p_mutex) {
     struct request * a_request;
 
@@ -87,6 +98,10 @@ struct request * get_request(pthread_mutex_t * p_mutex) {
     return a_request;
 }
 
+/*
+ * this function handles the responses from the client side.
+ * also, controls the requests of pthead
+ */
 void * handleResponseLoop(void * data) {
     struct request * a_request;
     int thread_id = *((int *) data);
@@ -108,18 +123,16 @@ void * handleResponseLoop(void * data) {
     }
 }
 
-uint16_t serverPort;
-int sockfd, new_fd;
-
-volatile int highestSession = 0;
-
 int main(int argc, char ** argv) {
-    struct sockaddr_in my_addr;
-    struct sockaddr_in their_addr;
+    struct sockaddr_in my_address;
+    struct sockaddr_in their_address;
     socklen_t sin_size;
     signal(SIGINT, interruptHandler);
     signal(SIGHUP, interruptHandler);
 
+    /*
+     * controls port numbers
+     */
     switch (argc) {
         case 1:
             serverPort = DEFAULT_PORT;
@@ -131,63 +144,65 @@ int main(int argc, char ** argv) {
             error("Too many arguments!!");
             return -1;
     }
-
     validatePort(serverPort);
 
     if (loadAccounts() != 0) {
-        error("Failed to load accounts");
+        error("ACCOUNT LOAD FAIL");
         return -1;
     }
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        error("Failed to create socket");
+        error("SOCKET CREATION FAIL");
         return -1;
     }
 
-    my_addr.sin_family = AF_INET;
-    my_addr.sin_port = htons(serverPort);
-    my_addr.sin_addr.s_addr = INADDR_ANY; // 0.0.0.0
+    my_address.sin_family = AF_INET;
+    my_address.sin_port = htons(serverPort);
+    my_address.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(sockfd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr)) == -1) {
-        error("Failed to bind to port");
+    if (bind(sockfd, (struct sockaddr *) &my_address, sizeof(struct sockaddr)) == -1) {
+        error("PORT BIND FAIL");
         return -1;
     }
 
-    if (listen(sockfd, BACKLOG) == -1) {
-        error("Failed to listen on socket");
+    if (listen(sockfd, BACKLOGIN) == -1) {
+        error("SOCKET FAIL");
         return -1;
     }
 
-    currentSessions = createList(4, sizeof(SessionStore));
+    currentSessions = createList(4, sizeof(SessionHandle));
     gameSessions = createList(4, sizeof(ServerGameState));
     scores = createMap(4);
 
-    printf("Server is listening on port %d \n", serverPort);
+    printf("Server is on port %d \n", serverPort);
 
 
-    int threadIds[BACKLOG];
-    pthread_t p_threads[BACKLOG];
+    int threadIds[BACKLOGIN];
+    pthread_t p_threads[BACKLOGIN];
 
-    for (int i = 0; i < BACKLOG; i++) {
+    for (int i = 0; i < BACKLOGIN; i++) {
         threadIds[i] = i;
         pthread_create(&p_threads[i], NULL, handleResponseLoop, (void *) &threadIds[i]);
     }
 
     while (1) {
         sin_size = sizeof(struct sockaddr_in);
-        if ((new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size)) == -1) {
+        if ((new_fd = accept(sockfd, (struct sockaddr *) &their_address, &sin_size)) == -1) {
             perror("Failed to accept a connection");
             continue;
         }
-        printf("Got a connection from: %s\n", inet_ntoa(their_addr.sin_addr));
+        printf("Got a connection from: %s\n", inet_ntoa(their_address.sin_addr));
         add_request(new_fd, &request_mutex, &got_request);
     }
 
-    finishUp();
+    finish();
     return 0;
 }
 
-int _getStateIndexBySession(int session) {
+/*
+ * this function get the index of state by the current session
+ */
+int getStateIndexBySession(int session) {
     for (int i = 0; i < gameSessions->length; i++) {
         ServerGameState * serverGameState = ((ServerGameState *) getValueAt(gameSessions, i));
         if (serverGameState == NULL) {
@@ -198,33 +213,38 @@ int _getStateIndexBySession(int session) {
             return i;
         }
     }
-
     return -1;
 }
 
-ServerGameState * _getStateBySession(int session) {
-    int index = _getStateIndexBySession(session);
-
+/*
+ * this function get state by the current session
+ */
+ServerGameState * getStateBySession(int session) {
+    int index = getStateIndexBySession(session);
     return index != -1 ? getValueAt(gameSessions, index) : NULL;
 }
 
+/*
+ * this function handles packets for login, start, minesweeper, leaderboard, and close_client
+ */
 void * handleResponse(struct request * a_request, int thread_id) {
     int sock = a_request->socket_id;
     DataPacket inputPacket;
 
     while (recv(sock, &inputPacket, sizeof(DataPacket), 0) > 0) {
-        SessionStore * currentSession = NULL;
+        SessionHandle * currentSession = NULL;
         if (inputPacket.session != -1) {
             for (int i = 0; i < currentSessions->length; i++) {
-                SessionStore * sessionStore = getValueAt(currentSessions, i);
-                if (sessionStore->session == inputPacket.session) {
-                    currentSession = sessionStore;
+                SessionHandle * sessionHandle = getValueAt(currentSessions, i);
+                if (sessionHandle->session == inputPacket.session) {
+                    currentSession = sessionHandle;
                     break;
                 }
             }
         }
 
         switch (inputPacket.type) {
+            /* controls the login packet */
             case LOGIN_PACKET: {
                 LoginDetailsPayload detailsPayload;
                 recv(sock, &detailsPayload, sizeof(LoginDetailsPayload), 0);
@@ -248,7 +268,7 @@ void * handleResponse(struct request * a_request, int thread_id) {
                 packet.session = response ? (highestSession++) : -1;
 
                 if (response) {
-                    SessionStore * store = malloc(sizeof(SessionStore));
+                    SessionHandle * store = malloc(sizeof(SessionHandle));
                     strcpy(store->username, username);
                     store->session = packet.session;
                     add(currentSessions, store);
@@ -258,28 +278,18 @@ void * handleResponse(struct request * a_request, int thread_id) {
                 send(sock, &loginResponse, sizeof(LoginResponsePayload), 0);
                 break;
             }
+            /* controls the start packet */
             case START_PACKET: {
                 if (currentSession == NULL) {
                     printf("Non-logged in user tried to start a game!");
                     break;
                 }
-                //StrPair * randomWordPair = (StrPair *) getValueAt(words, (int) (random() % words->length));
 
                 ServerGameState serverState;
                 serverState.session = inputPacket.session;
-                //serverState.wordPair = randomWordPair;
-                //strcpy(serverState.guessedLetters, "");
-                //serverState.guessesLeft = (int) min(strlen(randomWordPair->a) + strlen(randomWordPair->b) + 10, 26);
-
                 add(gameSessions, &serverState);
 
                 ClientGameState state;
-
-                //state.remainingMines = serverState.guessesLeft;
-                //strcpy(state.guessedLetters, serverState.guessedLetters);
-                //int remaining = 0;
-                
-		//formatWords(randomWordPair, state.guessedLetters, state.currentGuess, &remaining);
                 state.won = false;
 
                 DataPacket packet;
@@ -290,46 +300,27 @@ void * handleResponse(struct request * a_request, int thread_id) {
                 send(sock, &state, sizeof(ClientGameState), 0);
                 break;
             }
-            case GUESS_PACKET: {
+            /* controls the minesweeper packet */
+            case MINESWEEPER_PACKET: {
                 if (currentSession == NULL) {
-                    printf("Non-logged in user tried to guess!");
+                    printf("Session Error");
                     break;
                 }
 
                 TakeTurnPayload takeTurnPayload;
                 recv(sock, &takeTurnPayload, sizeof(TakeTurnPayload), 0);
 
-                ServerGameState * serverState = _getStateBySession(inputPacket.session);
+                ServerGameState * serverState = getStateBySession(inputPacket.session);
                 if (serverState == NULL) {
-                    printf("Got invalid session %d", inputPacket.session);
+                    printf("Invalid session %d", inputPacket.session);
                     break;
                 }
-                if (takeTurnPayload.guess < 'a' 
-                    || takeTurnPayload.guess > 'z'
-                    //|| strchr(serverState->guessedLetters, takeTurnPayload.guess)
-                    || serverState->guessesLeft <= 0) {
-                    DataPacket packet;
-                    packet.type = INVALID_GUESS_PACKET;
-                    packet.session = inputPacket.session;
-
-                    send(sock, &packet, sizeof(DataPacket), 0);
-                    break;
-                }
-                serverState->guessesLeft--;
-                //size_t currentGuessNumbers = strlen(serverState->guessedLetters);
-                //serverState->guessedLetters[currentGuessNumbers] = takeTurnPayload.guess;
-                //serverState->guessedLetters[currentGuessNumbers + 1] = '\0';
 
                 ClientGameState state;
 
-                state.remainingMines = serverState->guessesLeft;
-                //strcpy(state.guessedLetters, serverState->guessedLetters);
-                //int remaining;
-                //formatWords(serverState->wordPair, state.guessedLetters, state.currentGuess, &remaining);
-                //state.won = remaining == 0;
 		state.won = 0;
 
-                if (state.won || serverState->guessesLeft <= 0) {
+                if (state.won) {
                     LeaderboardEntry * entry = getScoreForPlayer(currentSession->username);
                     entry->games++;
                     strcpy(entry->username, currentSession->username);
@@ -346,6 +337,7 @@ void * handleResponse(struct request * a_request, int thread_id) {
                 send(sock, &state, sizeof(ClientGameState), 0);
                 break;
             }
+            /* controls the leaderboard packet */
             case LEADERBOARD_PACKET: {
                 if (currentSession == NULL) {
                     printf("Non-logged in user tried to request leaderboard!");
@@ -394,13 +386,13 @@ void * handleResponse(struct request * a_request, int thread_id) {
                 send(sock, &packet, sizeof(DataPacket), 0);
                 break;
             }
+            /* controls the close client packet */
             case CLOSE_CLIENT_PACKET: {
                 if (inputPacket.session != -1) {
-                    // Clear out their old session.
-                    removeAt(gameSessions, _getStateIndexBySession(inputPacket.session));
+                    removeAt(gameSessions, getStateIndexBySession(inputPacket.session));
                     for (int i = 0; i < currentSessions->length; i++) {
-                        SessionStore * sessionStore = getValueAt(currentSessions, i);
-                        if (sessionStore->session == inputPacket.session) {
+                        SessionHandle * sessionHandle = getValueAt(currentSessions, i);
+                        if (sessionHandle->session == inputPacket.session) {
                             removeAt(currentSessions, i);
                             break;
                         }
@@ -418,6 +410,9 @@ void * handleResponse(struct request * a_request, int thread_id) {
     return NULL;
 }
 
+/*
+ * this function gets the scores for each player
+ */
 LeaderboardEntry * getScoreForPlayer(char username[USERNAME_MAX_LENGTH]) {
     pthread_mutex_lock(&scores_mutex);
     LeaderboardEntry * entry = getValue(scores, username);
@@ -434,6 +429,9 @@ LeaderboardEntry * getScoreForPlayer(char username[USERNAME_MAX_LENGTH]) {
     return entry;
 }
 
+/*
+ * this function loads the users account
+ */
 int loadAccounts() {
     accounts = createMap(16);
 
@@ -484,15 +482,21 @@ int loadAccounts() {
     return 0;
 }
 
+/*
+ * this function controls the interrupt signal to close program
+ */
 void interruptHandler(int signal) {
     if (signal == SIGINT || signal == SIGHUP) {
-        printf("\nshut down the server\n");
-        finishUp();
+        printf("\nShut down\n");
+        finish();
         exit(0);
     }
 }
 
-void finishUp() {
+/*
+ * this function releases all memory captured
+ */
+void finish() {
     freeMap(accounts);
     freeList(gameSessions);
     freeList(currentSessions);

@@ -2,6 +2,9 @@
 
 #include <stdlib.h>
 
+/*
+ * this structure defines the elements of list
+ */
 typedef struct list {
     int length;
     size_t arrayLength;
@@ -10,51 +13,26 @@ typedef struct list {
 } * List;
 
 /**
- * Creates a list of the given length.
- *
- * @param startingLength The starting length
- * @param dataSize The size of the data
- * @return The new list
+ * this function creates a list of the given length
  */
 List createList(size_t startingLength, size_t dataSize);
 
 /**
- * Gets the value at the given index
- *
- * @param list The list
- * @param index The index
- * @return The value at the index
+ * this function gets the value at the given index
  */
 void * getValueAt(List list, int index);
 
 /**
- * Adds a value to the list, resizing if necessary
- *
- * @param list The list
- * @param value The value
+ * this function adds a value to the list
  */
 void add(List list, void * value);
 
 /**
- * Adds a value to the list at the index, resizing if necessary
- *
- * @param list The list
- * @param value The value
- * @param index The index
- */
-//void addAt(List list, void * value, int index);
-
-/**
- * Removes a value from the list by the index.
- *
- * @param list The list
- * @param index The index
+ * this function removes a value from the list by the index.
  */
 void removeAt(List list, int index);
 
-/**
- * Frees the list.
- *
- * @param list The list
+/*
+ * this function releases the memory captured
  */
 void freeList(List list);

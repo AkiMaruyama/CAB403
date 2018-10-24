@@ -1,8 +1,10 @@
-#include "map.h"
-
 #include <stdlib.h>
 #include <string.h>
+#include "map.h"
 
+/*
+ * this function creates map of given length
+ */
 Map createMap(int startingLength) {
     Map map = malloc(sizeof(struct map));
     map->length = startingLength;
@@ -10,30 +12,37 @@ Map createMap(int startingLength) {
     return map;
 }
 
-bool _areKeysEqual(char * a, char * b) {
+/*
+ * this function checks if keys are equal
+ */
+bool areKeysEqual(char * a, char * b) {
     return strcmp(a, b) == 0;
 }
 
+/*
+ * this function gets value from map
+ */
 void * getValue(Map map, char * key) {
     for (int i = 0; i < map->length; i++) {
         if (map->entries[i] == NULL) {
             continue;
         }
-        if (_areKeysEqual(map->entries[i]->key, key)) {
+        if (areKeysEqual(map->entries[i]->key, key)) {
             return map->entries[i]->value;
         }
     }
-
     return NULL;
 }
 
-int _getFreeIndex(Map map) {
+/*
+ * this function gets free index of map
+ */
+int getFreeIndex(Map map) {
     for (int i = 0; i < map->length; i++) {
         if (map->entries[i] == NULL) {
             return i;
         }
     }
-
     return -1;
 }
 
@@ -49,7 +58,7 @@ void putEntry(Map map, char * key, void * value) {
             }
         }
     } else {
-        int freeIndex = _getFreeIndex(map);
+        int freeIndex = getFreeIndex(map);
         if (freeIndex < 0) {
             size_t oldLength = (size_t) map->length;
             map->length <<= 1;
@@ -74,6 +83,9 @@ void putEntry(Map map, char * key, void * value) {
     }
 }
 
+/*
+ * this function removes entry from map
+ */
 bool removeEntry(Map map, char * key) {
     for (int i = 0; i < map->length; i++) {
         if (map->entries[i] == NULL) {
@@ -84,14 +96,19 @@ bool removeEntry(Map map, char * key) {
             return true;
         }
     }
-
     return false;
 }
 
+/*
+ * this function checks if map contains entry
+ */
 bool containsEntry(Map map, char * key) {
     return getValue(map, key) != NULL;
 }
 
+/*
+ * this function gets values from map
+ */
 void ** getValues(Map map, size_t size, int * length) {
     void ** values = malloc(map->length * size);
     int index = 0;
@@ -106,6 +123,9 @@ void ** getValues(Map map, size_t size, int * length) {
     return values;
 }
 
+/*
+ * this function releases map's memory
+ */
 void freeMap(Map map) {
     free(map->entries);
     free(map);

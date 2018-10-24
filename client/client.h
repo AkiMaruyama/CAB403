@@ -4,19 +4,34 @@
 
 #include <stdbool.h>
 
+/*
+ * this enumeration defines types of screens.
+ */
 typedef enum screen_type {
-    LOGIN_SCREEN,
-    MENU_SCREEN,
-    GAME_OVER_SCREEN,
-    WIN_SCREEN,
-    LEADERBOARD_SCREEN,
-    GAME_SCREEN
+    LOGIN,
+    MENU,
+    GAMEOVER,
+    WIN,
+    LEADERBOARD,
+    GAME
 } ScreenType;
 
+/*
+ * this function draws "welcome text"
+ */
 void drawWelcomeText();
 
+/*
+ * this function draws screens depending on the screen type
+ */
 void drawScreen(ScreenType screenType);
 
+/*
+ * this function checks if the users are valid.
+ */
 bool authenticateUser(char username[], char password[]);
 
-void startGame();
+/*
+ * this function controls the minesweeper gaming system.
+ */
+void gameStart();

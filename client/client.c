@@ -502,7 +502,7 @@ int main(int argc, char ** argv) {
 
     drawWelcomeText();
 
-    drawScreen(LOGIN_SCREEN);
+    drawScreen(LOGIN);
 
     DataPacket packet;
     packet.type = CLOSE_CLIENT_PACKET;
@@ -548,7 +548,7 @@ void _drawLoginScreen() {
     printf("\n");
 
     if (authenticateUser(username, password)) {
-        drawScreen(MENU_SCREEN);
+        drawScreen(MENU);
     } else {
         printf("Either an unauthorized username or password\n");
         exit(1);
@@ -579,15 +579,15 @@ void _drawMenuScreen() {
 
     switch (choice) {
         case 1:
-            drawScreen(GAME_SCREEN);
+            drawScreen(GAME);
             break;
         case 2:
-            drawScreen(LEADERBOARD_SCREEN);
+            drawScreen(LEADERBOARD);
             break;
         case 3:
             return;
         default:
-            drawScreen(MENU_SCREEN);
+            drawScreen(MENU);
             break;
     }
 }
@@ -597,7 +597,7 @@ void _drawMenuScreen() {
  */
 void _drawWinScreen() {
     printf("Congratulations! You have located all the mines.\n\n");
-    drawScreen(MENU_SCREEN);
+    drawScreen(MENU);
 }
 
 /**
@@ -605,7 +605,7 @@ void _drawWinScreen() {
  */
 void _drawGameOverScreen() {
     printf("\nGame over! You hit a mine\n\n");
-    drawScreen(MENU_SCREEN);
+    drawScreen(MENU);
 }
 
 /**
@@ -675,14 +675,14 @@ void _drawLeaderboardScreen() {
         drawBorder(borderNum);
         printf("\n\n");
     }
-    drawScreen(MENU_SCREEN);
+    drawScreen(MENU);
 }
 
 /**
  * TODO: comment
  */
 void _drawGameScreen() {
-    startGame();
+    gameStart();
     /*while (gameState->remainingMines > 0 && !gameState->won) {
         printf("\n");
         for (int i = 0; i < 20; i++) {
@@ -752,22 +752,22 @@ void _drawGameScreen() {
  */
 void drawScreen(ScreenType screenType) {
     switch (screenType) {
-        case LOGIN_SCREEN:
+        case LOGIN:
             _drawLoginScreen();
             break;
-        case MENU_SCREEN:
+        case MENU:
             _drawMenuScreen();
             break;
-        case GAME_OVER_SCREEN:
+        case GAMEOVER:
             _drawGameOverScreen();
             break;
-        case WIN_SCREEN:
+        case WIN:
             _drawWinScreen();
             break;
-        case LEADERBOARD_SCREEN:
+        case LEADERBOARD:
             _drawLeaderboardScreen();
             break;
-        case GAME_SCREEN:
+        case GAME:
             _drawGameScreen();
             break;
     }
@@ -811,8 +811,8 @@ void _receiveGameState() {
     recv(sockfd, &inputPacket, sizeof(DataPacket), 0);
 
     if (inputPacket.type != STATE_RESPONSE_PACKET) {
-        if (inputPacket.type == INVALID_GUESS_PACKET) {
-            printf("\n\nYou can't guess that, please try again!\n\n");
+        if (inputPacket.type == INVALID_MINESWEEPER_PACKET) {
+            printf("\n\nGame over\n\n");
             return;
         } else {
             printf("Got packet %d.", inputPacket.type);
@@ -829,7 +829,7 @@ void _receiveGameState() {
 /**
  * TODO: comment
  */
-void startGame() {
+void gameStart() {
     DataPacket packet;
     packet.type = START_PACKET;
     packet.session = session;

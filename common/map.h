@@ -3,73 +3,53 @@
 #include <stdbool.h>
 #include "list.h"
 
+/*
+ * this structure defines elements of map entry
+ */
 typedef struct map_entry {
     char * key;
     void * value;
 } * MapEntry;
 
+/*
+ * this structure defines elements of map
+ */
 typedef struct map {
     int length;
     MapEntry * entries;
 } * Map;
 
 /**
- * Creates a map of the given length.
- *
- * @param startingLength The starting length
- * @return The new map
+ * this function creates map of the given length
  */
 Map createMap(int startingLength);
 
 /**
- * Gets a value from the Map, or NULL if not present.
- *
- * @param map The map
- * @param key The key
- * @return The value, or NULL
+ * this function gets a value from map, or NULL
  */
 void * getValue(Map map, char * key);
 
 /**
- * Put an entry in the Map.
- *
- * @param map The map
- * @param key The key
- * @param value The value
+ * this function puts an entry in the map
  */
 void putEntry(Map map, char * key, void * value);
 
 /**
- * Removes an entry from the Map.
- *
- * @param map The map
- * @param key The key to remove
- * @return If an entry was removed
+ * this function removes an entry from the map
  */
 bool removeEntry(Map map, char * key);
 
 /**
- * Gets if a Map contains a key.
- *
- * @param map The map
- * @param key The key
- * @return If the map contains the key
+ * this function gets if map has a key
  */
 bool containsEntry(Map map, char * key);
 
-/**
- * Gets the map values as an array.
- *
- * @param map The map
- * @param size The size of the data type
- * @param length The return length of the array
- * @return The map values array
+/*
+ * this function gets the map values
  */
 void ** getValues(Map map, size_t size, int * length);
 
-/**
- * Frees the memory allocated to this map.
- *
- * @param map The map
+/*
+ * this function releases memory captured
  */
 void freeMap(Map map);
