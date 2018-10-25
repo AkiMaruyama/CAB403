@@ -424,20 +424,20 @@ int SetDrawLeaderboardSegment() {
     if (inputPacket.type == END_LEADERBOARD_PACKET) {
         return -1;
     } else if (inputPacket.type == ENTRY_LEADERBOARD_PACKET) {
-        LeaderboardEntry entry;
-        recv(client_socket, &entry, sizeof(LeaderboardEntry), 0);
+        LeaderboardEntry leaderBoard;
+        recv(client_socket, &leaderBoard, sizeof(LeaderboardEntry), 0);
 
         printf("\n");
         drawBorder(borderNum);
 
-        printf("\n\nPlayer - %s", entry.username);
-        printf("\nNumber of games won - %d", entry.wins);
-        printf("\nNumber of games played - %d\n\n", entry.games);
+        printf("\n\nPlayer - %s", leaderBoard.username);
+        printf("\nNumber of games won - %d", leaderBoard.wins);
+        printf("\nNumber of games played - %d\n\n", leaderBoard.games);
 
         drawBorder(borderNum);
         printf("\n");
     } else {
-        error("Received unexpected packet!");
+        error("Unexpected packet!");
         return -1;
     }
 

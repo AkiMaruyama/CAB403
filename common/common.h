@@ -5,8 +5,8 @@
 
 #define DEFAULT_PORT 12345
 #define KEEPLOGIN 10
-#define MAX_USERNAME 16
-#define MAX_PASSWORD 16
+#define MAX_USERNAME 20
+#define MAX_PASSWORD 20
 
 /*
  * this structure defines game state of the client side
@@ -21,8 +21,9 @@ typedef struct client_game_state {
  */
 typedef struct leaderboard_entry {
     char username[MAX_USERNAME];
-    int wins;
     int games;
+    int wins;
+    int time;
 } LeaderboardEntry;
 
 /*
