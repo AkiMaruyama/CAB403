@@ -32,7 +32,7 @@ void * getValue(Map map, char * key);
 /**
  * this function puts an entry in the map
  */
-void putEntry(Map map, char * key, void * value);
+void addEntry(Map map, char * key, void * value);
 
 /**
  * this function removes an entry from the map
@@ -42,7 +42,7 @@ bool removeEntry(Map map, char * key);
 /**
  * this function gets if map has a key
  */
-bool containsEntry(Map map, char * key);
+bool isContainsEntry(Map map, char * key);
 
 /*
  * this function gets the map values

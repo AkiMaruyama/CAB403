@@ -113,7 +113,7 @@ void * handleResponseLoop(void * data) {
             a_request = get_request(&request_mutex);
             if (a_request) {
                 pthread_mutex_unlock(&request_mutex);
-                handleResponse(a_request, thread_id);
+                responseHandler(a_request, thread_id);
                 free(a_request);
                 pthread_mutex_lock(&request_mutex);
             }
@@ -165,7 +165,7 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    if (listen(sockfd, BACKLOGIN) == -1) {
+    if (listen(sockfd, KEEPLOGIN) == -1) {
         error("SOCKET FAIL");
         return -1;
     }
@@ -177,10 +177,10 @@ int main(int argc, char ** argv) {
     printf("Server is on port %d \n", serverPort);
 
 
-    int threadIds[BACKLOGIN];
-    pthread_t p_threads[BACKLOGIN];
+    int threadIds[KEEPLOGIN];
+    pthread_t p_threads[KEEPLOGIN];
 
-    for (int i = 0; i < BACKLOGIN; i++) {
+    for (int i = 0; i < KEEPLOGIN; i++) {
         threadIds[i] = i;
         pthread_create(&p_threads[i], NULL, handleResponseLoop, (void *) &threadIds[i]);
     }
@@ -227,7 +227,7 @@ ServerGameState * getStateBySession(int session) {
 /*
  * this function handles packets for login, start, minesweeper, leaderboard, and close_client
  */
-void * handleResponse(struct request * a_request, int thread_id) {
+void * responseHandler(struct request * a_request, int thread_id) {
     int sock = a_request->socket_id;
     DataPacket inputPacket;
 
@@ -246,21 +246,21 @@ void * handleResponse(struct request * a_request, int thread_id) {
         switch (inputPacket.type) {
             /* controls the login packet */
             case LOGIN_PACKET: {
-                LoginDetailsPayload detailsPayload;
-                recv(sock, &detailsPayload, sizeof(LoginDetailsPayload), 0);
+                LoginDetails detailsPayload;
+                recv(sock, &detailsPayload, sizeof(LoginDetails), 0);
 
-                char username[USERNAME_MAX_LENGTH], password[PASSWORD_MAX_LENGTH];
+                char username[MAX_USERNAME], password[MAX_PASSWORD];
                 strcpy(username, detailsPayload.username);
                 strcpy(password, detailsPayload.password);
 
                 bool response = false;
-                if (containsEntry(accounts, username)) {
+                if (isContainsEntry(accounts, username)) {
                     if (strcmp(getValue(accounts, username), password) == 0) {
                         response = true;
                     }
                 }
 
-                LoginResponsePayload loginResponse;
+                LoginResponse loginResponse;
                 loginResponse.success = response;
 
                 DataPacket packet;
@@ -275,7 +275,7 @@ void * handleResponse(struct request * a_request, int thread_id) {
                 }
 
                 send(sock, &packet, sizeof(DataPacket), 0);
-                send(sock, &loginResponse, sizeof(LoginResponsePayload), 0);
+                send(sock, &loginResponse, sizeof(LoginResponse), 0);
                 break;
             }
             /* controls the start packet */
@@ -307,8 +307,8 @@ void * handleResponse(struct request * a_request, int thread_id) {
                     break;
                 }
 
-                TakeTurnPayload takeTurnPayload;
-                recv(sock, &takeTurnPayload, sizeof(TakeTurnPayload), 0);
+                TakeTurn takeTurn;
+                recv(sock, &takeTurn, sizeof(TakeTurn), 0);
 
                 ServerGameState * serverState = getStateBySession(inputPacket.session);
                 if (serverState == NULL) {
@@ -321,7 +321,7 @@ void * handleResponse(struct request * a_request, int thread_id) {
 		state.won = 0;
 
                 if (state.won) {
-                    LeaderboardEntry * entry = getScoreForPlayer(currentSession->username);
+                    LeaderboardEntry * entry = getPlayerScore(currentSession->username);
                     entry->games++;
                     strcpy(entry->username, currentSession->username);
                     if (state.won) {
@@ -413,7 +413,7 @@ void * handleResponse(struct request * a_request, int thread_id) {
 /*
  * this function gets the scores for each player
  */
-LeaderboardEntry * getScoreForPlayer(char username[USERNAME_MAX_LENGTH]) {
+LeaderboardEntry * getPlayerScore(char username[MAX_USERNAME]) {
     pthread_mutex_lock(&scores_mutex);
     LeaderboardEntry * entry = getValue(scores, username);
     pthread_mutex_unlock(&scores_mutex);
@@ -422,7 +422,7 @@ LeaderboardEntry * getScoreForPlayer(char username[USERNAME_MAX_LENGTH]) {
         entry->games = 0;
         entry->wins = 0;
         pthread_mutex_lock(&scores_mutex);
-        putEntry(scores, username, entry);
+        addEntry(scores, username, entry);
         pthread_mutex_unlock(&scores_mutex);
     }
 
@@ -474,7 +474,7 @@ int loadAccounts() {
             fclose(auth_file_handle);
             return 1;
         }
-        putEntry(accounts, username, password);
+        addEntry(accounts, username, password);
     }
 
     fclose(auth_file_handle);

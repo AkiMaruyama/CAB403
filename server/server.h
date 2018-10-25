@@ -8,7 +8,7 @@
  */
 typedef struct session_handle {
     int session;
-    char username[USERNAME_MAX_LENGTH];
+    char username[MAX_USERNAME];
 } SessionHandle;
 
 /*
@@ -43,14 +43,14 @@ int loadAccounts();
  * this function controls the leader board information
  * it's mainly the scores for players
  */
-LeaderboardEntry * getScoreForPlayer(char username[USERNAME_MAX_LENGTH]);
+LeaderboardEntry * getPlayerScore(char username[MAX_USERNAME]);
+
+/*
+ * this function controls the thread pool
+ */
+void * responseHandler(struct request * a_request, int thread_id);
 
 /*
  * this function releases all memory captured
  */
 void finish();
-
-/*
- * this function controls the thread pool
- */
-void * handleResponse(struct request * a_request, int thread_id);

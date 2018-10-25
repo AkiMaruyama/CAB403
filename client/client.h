@@ -1,8 +1,7 @@
 #pragma once
 
-#include "../common/common.h"
-
 #include <stdbool.h>
+#include "../common/common.h"
 
 /*
  * this enumeration defines types of screens.
@@ -10,7 +9,7 @@
 typedef enum screen_type {
     LOGIN,
     MENU,
-    GAMEOVER,
+    LOSE,
     WIN,
     LEADERBOARD,
     GAME
@@ -19,17 +18,17 @@ typedef enum screen_type {
 /*
  * this function draws "welcome text"
  */
-void drawWelcomeText();
+void drawWelcomeMessage();
+
+/*
+ * this function checks if the users are valid.
+ */
+bool isAuthenticateUser(char username[], char password[]);
 
 /*
  * this function draws screens depending on the screen type
  */
 void drawScreen(ScreenType screenType);
-
-/*
- * this function checks if the users are valid.
- */
-bool authenticateUser(char username[], char password[]);
 
 /*
  * this function controls the minesweeper gaming system.

@@ -11,13 +11,6 @@
 
 #include "client.h"
 
-#define DIFFICULTY 0
-#define MAXSIDE 25
-#define MAXMINES 99
-#define MOVESIZE 526
-
-///////////////////////////////////////////////////////////////////
-
 /* NEW ADDED 10/25/18 */
 #define RANDOM_NUMBER_SEED 42
 #define NUM_TILES_X 9
@@ -186,7 +179,6 @@ void open_safe_tiles(int x, int y) {
 }
 
 void reveal_mines() {
-    //int x, y;
     for (int i = 0; i < NUM_MINES; i++) {
         client_board[mine_positions[i][0]][mine_positions[i][1]] = *mine;
     }
@@ -260,11 +252,11 @@ int MINES;
 char * serverAddress;
 uint16_t serverPort;
 
-int sockfd;
+int client_socket;
 struct sockaddr_in socketAddress;
 struct hostent * server;
 
-char username[USERNAME_MAX_LENGTH];
+char username[MAX_USERNAME];
 int session = -1;
 
 ClientGameState * gameState = NULL;
@@ -290,19 +282,19 @@ int main(int argc, char ** argv) {
     validatePort(serverPort);
 
     if (serverAddress == NULL) {
-        printf("Provide a server address!\n");
+        printf("Server address error!\n");
         return 1;
-    }
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        error("Failed to create socket");
     }
 
     server = gethostbyname(argv[1]);
     if (server == NULL) {
-        fprintf(stderr, "Unknown host\n");
+        fprintf(stderr, "Host is unknown!\n");
         exit(0);
+    }
+
+    client_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_socket < 0) {
+        error("Creating socket failed");
     }
 
     bzero((char *) &socketAddress, sizeof(socketAddress));
@@ -310,20 +302,16 @@ int main(int argc, char ** argv) {
     bcopy(server->h_addr, (char *) &socketAddress.sin_addr.s_addr, (size_t) server->h_length);
     socketAddress.sin_port = htons(serverPort);
 
-    if (connect(sockfd, (const struct sockaddr *) &socketAddress, sizeof(socketAddress)) < 0) {
-        error("Failed to connect to server");
+    if (connect(client_socket, (const struct sockaddr *) &socketAddress, sizeof(socketAddress)) < 0) {
+        error("connecting to server failed");
     }
 
-    drawWelcomeText();
-
+    drawWelcomeMessage();
     drawScreen(LOGIN);
-
     DataPacket packet;
     packet.type = CLOSE_CLIENT_PACKET;
     packet.session = session;
-
-    send(sockfd, &packet, sizeof(packet), 0);
-
+    send(client_socket, &packet, sizeof(packet), 0);
     if (gameState != NULL) {
         free(gameState);
     }
@@ -341,7 +329,7 @@ void drawBorder(int num) {
 /**
  * TODO: comment
  */
-void drawWelcomeText() {
+void drawWelcomeMessage() {
     int borderNum = 24;
     drawBorder(borderNum);
     printf("\n\nWelcome to the online Minesweeper gaming system\n\n");
@@ -352,16 +340,16 @@ void drawWelcomeText() {
 /**
  * TODO: commnet
  */
-void _drawLoginScreen() {
+void SetDrawLoginScreen() {
     printf("\n\n\nYou are required to logon with your registered Username and Password\n\n");
     printf("Username -> ");
     scanf("%s", username);
     printf("Password -> ");
-    char password[PASSWORD_MAX_LENGTH];
+    char password[MAX_PASSWORD];
     scanf("%s", password);
     printf("\n");
 
-    if (authenticateUser(username, password)) {
+    if (isAuthenticateUser(username, password)) {
         drawScreen(MENU);
     } else {
         printf("Either an unauthorized username or password\n");
@@ -372,7 +360,7 @@ void _drawLoginScreen() {
 /**
  * TODO: comment
  */
-void _drawMenuScreen() {
+void SetDrawMenuScreen() {
 
     int status = 0;
     int choice = 0;
@@ -412,7 +400,7 @@ void _drawMenuScreen() {
 /**
  * TODO: comment
  */
-void _drawWinScreen() {
+void SetDrawWinScreen() {
     printf("Congratulations! You have located all the mines.\n\n");
     drawScreen(MENU);
 }
@@ -420,7 +408,7 @@ void _drawWinScreen() {
 /**
  * TODO: comment
  */
-void _drawGameOverScreen() {
+void SetDrawLoseScreen() {
     printf("\nGame over! You hit a mine\n\n");
     drawScreen(MENU);
 }
@@ -428,16 +416,16 @@ void _drawGameOverScreen() {
 /**
  * TODO: comment
  */
-int _displayLeaderboardSegment() {
+int SetDrawLeaderboardSegment() {
     int borderNum = 38;
     DataPacket inputPacket;
-    recv(sockfd, &inputPacket, sizeof(DataPacket), 0);
+    recv(client_socket, &inputPacket, sizeof(DataPacket), 0);
 
     if (inputPacket.type == END_LEADERBOARD_PACKET) {
         return -1;
     } else if (inputPacket.type == ENTRY_LEADERBOARD_PACKET) {
         LeaderboardEntry entry;
-        recv(sockfd, &entry, sizeof(LeaderboardEntry), 0);
+        recv(client_socket, &entry, sizeof(LeaderboardEntry), 0);
 
         printf("\n");
         drawBorder(borderNum);
@@ -459,26 +447,26 @@ int _displayLeaderboardSegment() {
 /**
  * TODO: comment
  */
-void _drawLeaderboardScreen() {
+void SetDrawLeaderboardScreen() {
     int borderNum = 38;
     DataPacket packet;
     packet.type = LEADERBOARD_PACKET;
     packet.session = session;
 
-    send(sockfd, &packet, sizeof(packet), 0);
+    send(client_socket, &packet, sizeof(packet), 0);
 
     int drawnEntries = 0;
 
     DataPacket inputPacket;
-    recv(sockfd, &inputPacket, sizeof(DataPacket), 0);
+    recv(client_socket, &inputPacket, sizeof(DataPacket), 0);
 
     if (inputPacket.type != START_LEADERBOARD_PACKET) {
-        error("Received unexpected packet!");
+        error("Receiving weird packet!");
         return;
     }
 
     while (true) {
-        if (_displayLeaderboardSegment() == -1) {
+        if (SetDrawLeaderboardSegment() == -1) {
             break;
         } else {
             drawnEntries++;
@@ -498,74 +486,12 @@ void _drawLeaderboardScreen() {
 /**
  * TODO: comment
  */
-void _drawGameScreen() {
+void SetDrawGameScreen() {
     gameStart();
     srand(RANDOM_NUMBER_SEED);
     while (playing_game){
         play_game();
     }
-    /*while (gameState->remainingMines > 0 && !gameState->won) {
-        printf("\n");
-        for (int i = 0; i < 20; i++) {
-            printf("-");
-        }
-        printf("\n\n\n");
-        printf("Guessed letters: %s\n\n", gameState->guessedLetters);
-        printf("Number of guesses left: %d\n\n", gameState->remainingMines);
-        printf("Word: %s\n\n", gameState->currentGuess);
-        printf("Enter your guess -> ");
-        char choice;
-        int status = scanf("%c", &choice);
-        if (status == 0) {
-            int c;
-            while ((c = getchar()) != '\n' && c != EOF);
-        } else {
-            guessCharacter(choice);
-        }
-    }
-    Tile* board[height][width];
-    for (int i = 0; i < height; i++){
-      for (int j = 0; j < width; j++){
-        board[i][j] = createTile(i, j);
-      }
-    }
-
-    cursor = createCursor(height, width);
-
-    srand(time(NULL));
-
-    while(play){
-      if (!firstMove){
-        printMineInfo();
-      }
-      printBoard(board);
-      if (scanf(" %c", &currentCommand) != -1){
-        readAndExecuteInput(board);
-        winCheck(board);
-      } else {
-        printf("Invalid entry.\n");
-      }
-
-      if (win || lose){
-        printBoard(board);
-        if (win){
-          printf("Congratulations, you won!\n");
-        } else if (lose){
-          printf("Oh, a mine blew up.\n");
-        }
-        revertToStartingState(board);
-        promptNextAction();
-      }
-    }
-    for (int i = 0; i < height; i++){
-      for (int j = 0; j < width; j++){
-        free(board[i][j]);
-      }
-    }
-    free(cursor);
-    printf("Program close.\n");
-
-    //drawScreen(gameState->won ? WIN_SCREEN : GAME_OVER_SCREEN);*/
 }
 
 /**
@@ -574,22 +500,22 @@ void _drawGameScreen() {
 void drawScreen(ScreenType screenType) {
     switch (screenType) {
         case LOGIN:
-            _drawLoginScreen();
+            SetDrawLoginScreen();
             break;
         case MENU:
-            _drawMenuScreen();
+            SetDrawMenuScreen();
             break;
-        case GAMEOVER:
-            _drawGameOverScreen();
+        case LOSE:
+            SetDrawLoseScreen();
             break;
         case WIN:
-            _drawWinScreen();
+            SetDrawWinScreen();
             break;
         case LEADERBOARD:
-            _drawLeaderboardScreen();
+            SetDrawLeaderboardScreen();
             break;
         case GAME:
-            _drawGameScreen();
+            SetDrawGameScreen();
             break;
     }
 }
@@ -597,19 +523,19 @@ void drawScreen(ScreenType screenType) {
 /**
  * TODO: comment
  */
-bool authenticateUser(char username[], char password[]) {
-    LoginDetailsPayload payload;
+bool isAuthenticateUser(char username[], char password[]) {
+    LoginDetails payload;
     strcpy(payload.username, username);
     strcpy(payload.password, password);
 
     DataPacket dataPacket;
     dataPacket.type = LOGIN_PACKET;
 
-    send(sockfd, &dataPacket, sizeof(dataPacket), 0);
-    send(sockfd, &payload, sizeof(LoginDetailsPayload), 0);
+    send(client_socket, &dataPacket, sizeof(dataPacket), 0);
+    send(client_socket, &payload, sizeof(LoginDetails), 0);
 
     DataPacket inputPacket;
-    recv(sockfd, &inputPacket, sizeof(DataPacket), 0);
+    recv(client_socket, &inputPacket, sizeof(DataPacket), 0);
 
     if (inputPacket.type != LOGIN_RESPONSE_PACKET) {
         printf("Got packet %d.", inputPacket.type);
@@ -617,9 +543,9 @@ bool authenticateUser(char username[], char password[]) {
     }
     session = inputPacket.session;
 
-    LoginResponsePayload responsePayload;
-    recv(sockfd, &responsePayload, sizeof(LoginResponsePayload), 0);
-    bool success = responsePayload.success;
+    LoginResponse loginResponse;
+    recv(client_socket, &loginResponse, sizeof(LoginResponse), 0);
+    bool success = loginResponse.success;
 
     return success;
 }
@@ -627,9 +553,9 @@ bool authenticateUser(char username[], char password[]) {
 /**
  * TODO: comment
  */
-void _receiveGameState() {
+void SetReceiveGameState() {
     DataPacket inputPacket;
-    recv(sockfd, &inputPacket, sizeof(DataPacket), 0);
+    recv(client_socket, &inputPacket, sizeof(DataPacket), 0);
 
     if (inputPacket.type != STATE_RESPONSE_PACKET) {
         if (inputPacket.type == INVALID_MINESWEEPER_PACKET) {
@@ -644,7 +570,7 @@ void _receiveGameState() {
     if (gameState == NULL) {
         gameState = malloc(sizeof(ClientGameState));
     }
-    recv(sockfd, gameState, sizeof(ClientGameState), 0);
+    recv(client_socket, gameState, sizeof(ClientGameState), 0);
 }
 
 /**
@@ -654,8 +580,6 @@ void gameStart() {
     DataPacket packet;
     packet.type = START_PACKET;
     packet.session = session;
-
-    send(sockfd, &packet, sizeof(packet), 0);
-
-    _receiveGameState();
+    send(client_socket, &packet, sizeof(packet), 0);
+    SetReceiveGameState();
 }

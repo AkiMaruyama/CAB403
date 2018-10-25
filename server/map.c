@@ -46,8 +46,8 @@ int getFreeIndex(Map map) {
     return -1;
 }
 
-void putEntry(Map map, char * key, void * value) {
-    if (containsEntry(map, key)) {
+void addEntry(Map map, char * key, void * value) {
+    if (isContainsEntry(map, key)) {
         for (int i = 0; i < map->length; i++) {
             if (map->entries[i] == NULL) {
                 continue;
@@ -102,7 +102,7 @@ bool removeEntry(Map map, char * key) {
 /*
  * this function checks if map contains entry
  */
-bool containsEntry(Map map, char * key) {
+bool isContainsEntry(Map map, char * key) {
     return getValue(map, key) != NULL;
 }
 
