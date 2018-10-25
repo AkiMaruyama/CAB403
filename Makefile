@@ -10,8 +10,14 @@ Server: server.o common.o map.o list.o
 server.o: server/server.c
 	$(CC) $(CCFLAGS) -c $^
 
+map.o: server/map.c
+	$(CC) $(CCFLAGS) -c $^
 
-Client: client.o common.o map.o list.o
+list.o: server/list.c
+	$(CC) $(CCFLAGS) -c $^
+
+
+Client: client.o common.o
 	$(CC) $(CCFLAGS) -o $@ $^ $(LDFLAGS)
 
 client.o: client/client.c
@@ -19,13 +25,6 @@ client.o: client/client.c
 
 common.o: common/common.c
 	$(CC) $(CCFLAGS) -c $^
-
-map.o: common/map.c
-	$(CC) $(CCFLAGS) -c $^
-
-list.o: common/list.c
-	$(CC) $(CCFLAGS) -c $^
-
 
 clean:
 	- rm *.o
