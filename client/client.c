@@ -455,7 +455,7 @@ void SetDrawLeaderboardScreen() {
 
     send(client_socket, &packet, sizeof(packet), 0);
 
-    int drawnEntries = 0;
+    int currentEntries = 0;
 
     DataPacket inputPacket;
     recv(client_socket, &inputPacket, sizeof(DataPacket), 0);
@@ -469,11 +469,11 @@ void SetDrawLeaderboardScreen() {
         if (SetDrawLeaderboardSegment() == -1) {
             break;
         } else {
-            drawnEntries++;
+            currentEntries++;
         }
     }
 
-    if (drawnEntries == 0) {
+    if (currentEntries == 0) {
         printf("\n");
         drawBorder(borderNum);
         printf("\nThere is no information currently stored in the Leader Board. Try again later\n");
