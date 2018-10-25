@@ -22,14 +22,14 @@ char client_board[NUM_TILES_X][NUM_TILES_Y];
 char *mine = "*";
 char *revealed = "x";
 char *flag = "+";
-char *space = "-";
-char option_input;
+char input_option;
 
 int mine_positions[NUM_MINES][2];
 int remaining_mines = NUM_MINES;
-int x_input, y_input, menu_option;
 
-bool valid_option, playing_game;
+int x_coord, y_coord;
+
+bool is_valid_input, playing_game;
 bool tile_revealed[NUM_TILES_X][NUM_TILES_Y];
 
 typedef struct {
@@ -68,50 +68,85 @@ bool is_valid(int x, int y) {
     return (x >= 0) && (x < NUM_TILES_X) && (y >= 0) && (y < NUM_TILES_Y);
 }
 
-int check_tile(int x, int y) {
-    int surrounding_tiles = 0;
+int count_adjacent_mines(int x, int y) {
+    int count = 0;
+    
     if (tile_contains_mine(x, y)) {
-        surrounding_tiles = -1;
+        count = -1;
     } else {
-        if (tile_contains_mine(x + 1, y) && is_valid(x + 1, y)) {
-            surrounding_tiles++;
-        } if (tile_contains_mine(x - 1, y) && is_valid(x - 1, y)) {
-            surrounding_tiles++;
-        } if (tile_contains_mine(x, y - 1) && is_valid(x, y - 1)) {
-            surrounding_tiles++;
-        } if (tile_contains_mine(x, y + 1) && is_valid(x, y + 1)) {
-            surrounding_tiles++;
-        } if (tile_contains_mine(x + 1, y + 1) && is_valid(x + 1, y + 1)) {
-            surrounding_tiles++;
-        } if (tile_contains_mine(x - 1, y + 1) && is_valid(x - 1, y + 1)) {
-            surrounding_tiles++;
-        } if (tile_contains_mine(x + 1, y - 1) && is_valid(x + 1, y - 1)) {
-            surrounding_tiles++;
-        } if (tile_contains_mine(x - 1, y - 1) && is_valid(x - 1, y - 1)) {
-            surrounding_tiles++;
-        }
+           if (is_valid(x - 1, y)) {
+                if (tile_contains_mine(x - 1, y)) {
+                    count++;
+                }
+            }
+
+            if (is_valid(x + 1, y)) {
+                if (tile_contains_mine(x + 1, y)) {
+                    count++;
+                }
+            }
+
+            if (is_valid(x, y + 1)) {
+                if (tile_contains_mine(x, y + 1)) {
+                    count++;
+                }
+            }
+
+            if (is_valid(x, y - 1)) {
+                if (tile_contains_mine(x, y - 1)) {
+                    count++;
+                }
+            }
+
+            if (is_valid(x - 1, y - 1)) {
+                if (tile_contains_mine(x - 1, y - 1)) {
+                    count++;
+                }
+            }
+
+            if (is_valid(x - 1, y + 1)) {
+                if (tile_contains_mine(x - 1, y + 1)) {
+                    count++;
+                }
+            }
+
+            if (is_valid(x + 1, y + 1)) {
+                if (tile_contains_mine(x + 1, y + 1)) {
+                    count++;
+                }
+            }
+
+            if (is_valid(x + 1, y - 1)) {
+                if (tile_contains_mine(x + 1, y - 1)) {
+                    count++;
+                }
+            }
     }
-    return surrounding_tiles;
+ 
+    return count;
 }
 
-void initialise_client_board() {
+void initialise_board() {
+    char *tile;
+    tile = "-";
     for (int i = 0; i < NUM_TILES_X; i++) {
         for (int j = 0; j < NUM_TILES_Y; j++) {
-            client_board[j][i] = *space;
-            server_board[j][i] = *space;
+            client_board[j][i] = *tile;
+            server_board[j][i] = *tile;
         }
     }
 }
 
 void drawboard() {
-    printf("\n   123456789\n");
-    printf("-------------\n"); 
+    printf("\n   1 2 3 4 5 6 7 8 9\n");
+    printf("------------------------\n"); 
     for (int i = 0; i < NUM_TILES_X; i++) {
         for (int j = 0; j < NUM_TILES_Y; j++) {
             if (j == 0) {
                 printf("%d| ", i + 1);
             }
             printf("%c", client_board[j][i]);
+            printf(" ");
         }
         printf("\n");
     }
@@ -119,7 +154,7 @@ void drawboard() {
 }
 
 void reveal_tile(int x, int y) {
-    int tile_no = check_tile(x, y);
+    int tile_no = count_adjacent_mines(x, y);
     char tile_no_c = '0' + tile_no;
     if (is_valid(x, y)) {
         client_board[x][y] = tile_no_c;
@@ -127,53 +162,53 @@ void reveal_tile(int x, int y) {
 }
 
 void open_safe_tiles(int x, int y) {
-    if ((check_tile(x, y)) == 0) {
+    if ((count_adjacent_mines(x, y)) == 0) {
         reveal_tile(x - 1, y);
-        if (server_board[x - 1][y] == '0' && tile_revealed[x - 1][y] == false && is_valid(x - 1, y)) {
+        if (client_board[x - 1][y] == '0' && tile_revealed[x - 1][y] == false && is_valid(x - 1, y)) {
+            tile_revealed[x - 1][y] = true;
+            open_safe_tiles(x - 1, y); 
+        }
+
+        reveal_tile(x + 1, y);
+        if (client_board[x - 1][y] == '0' && tile_revealed[x - 1][y] == false && is_valid(x - 1, y)) {
             tile_revealed[x - 1][y] = true;
             open_safe_tiles(x - 1, y);
         }
 
-        reveal_tile(x - 1, y - 1);
-        if (server_board[x - 1][y - 1] == '0' && tile_revealed[x - 1][y - 1] == false && is_valid(x - 1, y -1)) {
-            tile_revealed[x - 1][y - 1] = true;
-            open_safe_tiles(x - 1, y - 1);
-        }
-
-        reveal_tile(x, y - 1);
-        if (server_board[x][y - 1] == '0' && tile_revealed[x][y - 1] == false && is_valid(x, y - 1)) {
-            tile_revealed[x][y - 1] = true;
-            open_safe_tiles(x, y - 1);
-        }
-
-        reveal_tile(x + 1, y - 1);
-        if (server_board[x + 1][y - 1] == '0' && tile_revealed[x + 1][y - 1] == false && is_valid(x + 1, y - 1)) {
-            tile_revealed[x + 1][y - 1] = true;
-            open_safe_tiles(x + 1, y - 1);
-        }
-
-        reveal_tile(x + 1, y);
-        if (server_board[x + 1][y] == '0' && tile_revealed[x + 1][y] == false && is_valid(x + 1, y)) {
-            tile_revealed[x + 1][y] = true;
-            open_safe_tiles(x + 1, y);
-        }
-
-        reveal_tile(x + 1, y + 1);
-        if (server_board[x + 1][y + 1] == '0' && tile_revealed[x + 1][y + 1] == false && is_valid(x + 1, y + 1)) {
-            tile_revealed[x + 1][y + 1] = true;
-            open_safe_tiles(x + 1, y + 1);
-        }
-
         reveal_tile(x, y + 1);
-        if (server_board[x][y + 1] == '0' && tile_revealed[x][y + 1] == false && is_valid(x, y + 1)) {
+        if (client_board[x][y + 1] == '0' && tile_revealed[x][y + 1] == false && is_valid(x, y + 1)) {
             tile_revealed[x][y + 1] = true;
             open_safe_tiles(x, y + 1);
         }
 
+        reveal_tile(x, y - 1);
+        if (client_board[x][y - 1] == '0' && tile_revealed[x][y - 1] == false && is_valid(x, y - 1)) {
+            tile_revealed[x][y - 1] = true;
+            open_safe_tiles(x, y - 1);
+        }
+    
         reveal_tile(x - 1, y + 1);
-        if (server_board[x - 1][y + 1] == '0' && tile_revealed[x - 1][y + 1] == false && is_valid(x - 1, y + 1)) {
+        if (client_board[x - 1][y + 1] == '0' && tile_revealed[x - 1][y + 1] == false && is_valid(x - 1, y + 1)) {
             tile_revealed[x - 1][y + 1] = true;
             open_safe_tiles(x - 1, y + 1);
+        }
+
+        reveal_tile(x - 1, y - 1);
+        if (client_board[x - 1][y - 1] == '0' && tile_revealed[x - 1][y - 1] == false && is_valid(x - 1, y - 1)) {
+            tile_revealed[x - 1][y - 1] = true;
+            open_safe_tiles(x - 1, y - 1);
+        }
+
+        reveal_tile(x + 1, y + 1);
+        if (client_board[x + 1][y + 1] == '0' && tile_revealed[x + 1][y + 1] == false && is_valid(x + 1, y + 1)) {
+            tile_revealed[x + 1][y + 1] = true;
+            open_safe_tiles(x + 1, y + 1);
+        }
+
+        reveal_tile(x + 1, y - 1);
+        if (client_board[x + 1][y - 1] == '0' && tile_revealed[x + 1][y - 1] == false && is_valid(x + 1, y - 1)) {
+            tile_revealed[x + 1][y - 1] = true;
+            open_safe_tiles(x + 1, y - 1);
         }
     }
 }
@@ -185,8 +220,11 @@ void reveal_mines() {
 }
 
 void play_game() {
-    valid_option = false;
-    while (!valid_option) {
+    // initilaise option state
+    is_valid_input = false;
+
+    // show game option while valid option is choosed 
+    while (!is_valid_input) {
         drawboard();
         printf("\n%d mines left\n\n", remaining_mines);
         printf("%s", "Choose an option: \n");
@@ -194,40 +232,54 @@ void play_game() {
         printf("%s", "<F> Place flag\n");
         printf("%s", "<Q> Quit\n\n");
         printf("%s", "Option (R,F,Q): ");
-        scanf("%c", &option_input);
+        scanf("%c", &input_option);
 
-        if(option_input == 'r' || option_input == 'f' || option_input == 'q') {
-            valid_option = true;
+        if(input_option == 'r' || input_option == 'f' || input_option == 'q') {
+            is_valid_input = true;
         }
     }
 
-    if (option_input == 'r' || option_input == 'f') {
-        printf("\nEnter x coordinate: ");
-        scanf("%d", &x_input);
-        printf("Enter y coordinate: ");
-        scanf("%d", &y_input);
-        if (option_input == 'r') {
-            int tile_no = check_tile(x_input, y_input);
+    int position;
+    bool is_valid_position = false;
+
+    if (input_option == 'r' || input_option == 'f') {
+
+        while (!is_valid_position) {
+            printf("Enter tile coordinates: ");
+            scanf("%d", &position);
+            getchar();
+            // getchar();
+
+            if (position > 10) {
+                is_valid_position = true;
+            } else {
+                printf("Please type numbers\n");
+            }
+        }
+
+        x_coord = position / 10 - 1;
+        y_coord = position % 10 - 1;
+
+        if (input_option == 'r') {
+            int tile_no = count_adjacent_mines(x_coord, y_coord);
 
             if (tile_no == -1) {
                 reveal_mines();
 
-                client_board[x_input][y_input] = *revealed;
+                client_board[x_coord][y_coord] = *revealed;
                 drawboard();
                 printf("You have revealed a mine. Game over\n\n");
                 playing_game = false;
-                getchar();
-                //display_welcome();
             }
 
-            reveal_tile(x_input, y_input);
-            open_safe_tiles(x_input, y_input);
+            reveal_tile(x_coord, y_coord);
+            open_safe_tiles(x_coord, y_coord);
         } else {
-            if (server_board[x_input][y_input] == *mine) {
-                server_board[x_input][y_input] = *flag;
-                client_board[x_input][y_input] = *flag; 
+            if (server_board[x_coord][y_coord] == *mine) {
+                server_board[x_coord][y_coord] = *flag;
+                client_board[x_coord][y_coord] = *flag; 
                 remaining_mines--;           
-            } else if (client_board[x_input][y_input] == *flag) {
+            } else if (client_board[x_coord][y_coord] == *flag) {
                 printf("\nYou have already flagged this tile\n");
             } else {
                 printf("\nNo mine there try again\n");
@@ -239,8 +291,8 @@ void play_game() {
             }
         }
 
-        valid_option = false;
-    } else if (option_input == 'q') {
+        is_valid_input = false;
+    } else if (input_option == 'q') {
         playing_game = false;
         //display_welcome();
     }
@@ -381,7 +433,7 @@ void SetDrawMenuScreen() {
 
     switch (choice) {
         case 1:
-            initialise_client_board();
+            initialise_board();
             place_mines();
             playing_game = true;
             drawScreen(GAME);
